@@ -37,6 +37,11 @@ def send_movement():
         vz -= velocity  # Move up
     if 'down' in pressed_keys:
         vz += velocity  # Move down
+    if 'r' in pressed_keys:
+        client.reset()
+        client.enableApiControl(True)
+        client.armDisarm(True)
+        client.takeoffAsync().join()
 
     client.moveByVelocityAsync(vx, vy, vz, duration, drivetrain=airsim.DrivetrainType.MaxDegreeOfFreedom,
                                yaw_mode=airsim.YawMode(False, 0))
@@ -68,6 +73,15 @@ try:
     while listener.running:
         send_movement()
         time.sleep(0.05)
+        
+        collision_info = client.simGetCollisionInfo()
+
+        # Check if collision has occurred
+        if collision_info.has_collided:
+            print(f"Object name: {collision_info.object_name}")
+            if ("Blocker" in collision_info.object_name):
+                print("Collision detected with the blocker!")
+        
 except KeyboardInterrupt:
     pass
 
