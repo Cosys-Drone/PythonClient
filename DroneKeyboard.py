@@ -81,6 +81,9 @@ try:
             print(f"Object name: {collision_info.object_name}")
             if ("Blocker" in collision_info.object_name):
                 print("Collision detected with the blocker!")
+                
+                
+        # print(client.simListSceneObjects())
         
 except KeyboardInterrupt:
     pass

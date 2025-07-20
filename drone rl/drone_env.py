@@ -14,7 +14,7 @@ class DroneEnv(gym.Env):  # ✅ Inherit from gymnasium.Env
         self.client.armDisarm(True)
 
         self.action_space = spaces.Box(low=-1, high=1, shape=(3,), dtype=np.float32)
-        obs_high = np.array([500, 500, 100, 10, 10, 10])
+        obs_high = np.array([10, 10, 10, 1, 1, 1, 1000])
         self.observation_space = spaces.Box(-obs_high, obs_high, dtype=np.float32)
 
         self.max_episode_steps = 300
@@ -36,8 +36,7 @@ class DroneEnv(gym.Env):  # ✅ Inherit from gymnasium.Env
         state = self.client.getMultirotorState()
         vel = state.kinematics_estimated.linear_velocity
         
-        pose = self.client.simGetObjectPose("Landing")
-        direction, distance = self.get_direction_and_distance(state.kinematics_estimated.position, pose.position)
+        direction, distance = self.get_direction_and_distance(state.kinematics_estimated.position, airsim.Vector3r(-319.6, 0, 261.7))
         
         obs = np.array([
             vel.x_val, vel.y_val, vel.z_val,
@@ -49,16 +48,15 @@ class DroneEnv(gym.Env):  # ✅ Inherit from gymnasium.Env
 
     def step(self, action):
         vx, vy, vz = [float(a) * 2 for a in action]
-        duration = 0.5
+        duration = 0.1
         self.client.moveByVelocityAsync(vx, vy, vz, duration).join()
 
         obs = self._get_obs()
         distance = obs[6] # Distance to the landing pad
-        reward += (1000-distance) / 10000
-        print(f"Distance to landing pad: {distance}, Reward: {reward}")
+        reward = (1000-distance) / 10000
+        # Print self positon and landing pad position
         
         self.step_count += 1
-        print(f"Step: {self.step_count}")
         terminated = self.step_count >= self.max_episode_steps
         truncated = False  # optional early stopping condition
         
@@ -82,7 +80,7 @@ class DroneEnv(gym.Env):  # ✅ Inherit from gymnasium.Env
         self.client.armDisarm(False)
         self.client.enableApiControl(False)
 
-    def get_direction_and_distance(drone_pos, pad_pos):
+    def get_direction_and_distance(self, drone_pos, pad_pos):
         # Calculate direction vector
         direction = airsim.Vector3r(
             pad_pos.x_val - drone_pos.x_val,
@@ -97,4 +95,4 @@ class DroneEnv(gym.Env):  # ✅ Inherit from gymnasium.Env
             direction.z_val**2
         )
 
-        return direction, distance
+        return direction/distance, distance

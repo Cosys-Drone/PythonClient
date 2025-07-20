@@ -9,23 +9,68 @@ import numpy as np
 env = DroneEnv()
 check_env(env)  # Check if the environment follows the Gymnasium API
 
-class TensorboardCallback(BaseCallback):
+# class TensorboardCallback(BaseCallback):
+#     def __init__(self, verbose=0):
+#         super().__init__(verbose)
+
+#     def _on_step(self) -> bool:
+#         reward = self.locals.get("rewards", [0])[-1]
+#         self.logger.record("custom/reward", reward, exclude="stdout")
+#         self.logger.dump(self.num_timesteps)  # Force write to disk
+#         return True
+
+from stable_baselines3.common.callbacks import BaseCallback
+
+class EpisodeLoggingCallback(BaseCallback):
     def __init__(self, verbose=0):
         super().__init__(verbose)
+        self.episode_rewards = []
+        self.current_reward = 0.0
+        self.episode_lengths = []
+        self.current_length = 0
 
     def _on_step(self) -> bool:
-        reward = self.locals.get("rewards", [0])[-1]
-        self.logger.record("custom/reward", reward, exclude="stdout")
-        self.logger.dump(self.num_timesteps)  # Force write to disk
+        self.current_reward += self.locals["rewards"][0]
+        self.current_length += 1
+
+        done = self.locals["dones"][0]
+        if done:
+            self.episode_rewards.append(self.current_reward)
+            self.episode_lengths.append(self.current_length)
+
+            # Log to TensorBoard
+            self.logger.record("custom/episode_reward", self.current_reward)
+            self.logger.record("custom/episode_length", self.current_length)
+            self.logger.dump(self.num_timesteps)
+
+            if self.verbose > 0:
+                print(f"[Step {self.num_timesteps}] Reward: {self.current_reward:.2f} | Length: {self.current_length}")
+
+            # Reset for next episode
+            self.current_reward = 0.0
+            self.current_length = 0
+
         return True
+    
+from stable_baselines3.common.callbacks import CheckpointCallback
+checkpoint_callback = CheckpointCallback(
+    save_freq=1_000,  # Save every 10,000 timesteps
+    save_path="./checkpoints/",  # Folder to save models
+    name_prefix="drone_model",   # File name prefix
+    save_replay_buffer=True,     # Optional: save replay buffer for off-policy algorithms
+    save_vecnormalize=True       # Optional: save normalization stats
+)
 
+from stable_baselines3.common.callbacks import CallbackList
 
-model = PPO("MlpPolicy", env, verbose=1, tensorboard_log="./ppo_airsim_drone_tensorboard/")
+combined_callback = CallbackList([
+    checkpoint_callback,
+    EpisodeLoggingCallback()
+])
+
+model = PPO("MlpPolicy", env, verbose=1, tensorboard_log="./ppo_airsim_drone_tensorboard/", n_steps=128, batch_size=64)
 
 model.learn(
     total_timesteps=100_000,
-    n_steps=128,
-    callback=TensorboardCallback(),
+    callback=combined_callback,
 )
-
-model.save("ppo_airsim_drone")
