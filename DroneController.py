@@ -9,7 +9,10 @@ for _ in range(3):
     except Exception as e:
         print("Waiting for AirSim server...")
         time.sleep(2)
-
+        
+        
+client = airsim.MultirotorClient()
+client.confirmConnection()
 client.reset()
 client.enableApiControl(True)
 client.armDisarm(True)

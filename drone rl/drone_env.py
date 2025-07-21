@@ -13,11 +13,12 @@ class DroneEnv(gym.Env):  # ✅ Inherit from gymnasium.Env
         self.client.enableApiControl(True)
         self.client.armDisarm(True)
 
-        self.action_space = spaces.Box(low=-1, high=1, shape=(3,), dtype=np.float32)
+        self.action_space = spaces.MultiDiscrete([3, 3, 3]) # 1, 0, -1 for each axis
+        
         obs_high = np.array([10, 10, 10, 1, 1, 1, 1000])
         self.observation_space = spaces.Box(-obs_high, obs_high, dtype=np.float32)
 
-        self.max_episode_steps = 300
+        self.max_episode_steps = 500
         self.step_count = 0
 
     def reset(self, seed=None, options=None):  # ✅ Updated signature
@@ -36,7 +37,13 @@ class DroneEnv(gym.Env):  # ✅ Inherit from gymnasium.Env
         state = self.client.getMultirotorState()
         vel = state.kinematics_estimated.linear_velocity
         
-        direction, distance = self.get_direction_and_distance(state.kinematics_estimated.position, airsim.Vector3r(-319.6, 0, 261.7))
+        direction, distance = self.get_direction_and_distance(state.kinematics_estimated.position, airsim.Vector3r(261.7, -319.6, -15))
+        
+        '''
+        public static void SetToAirSim(Vector3 src, ref AirSimVector dst) {
+            dst.Set(src.z, src.x, -src.y);
+        }
+        '''
         
         obs = np.array([
             vel.x_val, vel.y_val, vel.z_val,
@@ -47,13 +54,25 @@ class DroneEnv(gym.Env):  # ✅ Inherit from gymnasium.Env
         return obs
 
     def step(self, action):
-        vx, vy, vz = [float(a) * 2 for a in action]
-        duration = 0.1
-        self.client.moveByVelocityAsync(vx, vy, vz, duration).join()
+      
+        direction_map = {0: -1, 1: 0, 2: 1}
+        dx = direction_map[action[0]]
+        dy = direction_map[action[1]]
+        dz = direction_map[action[2]]
+        
+        speed = 5  # m/s
+        duration = 0.25  # seconds
+        
+        self.client.moveByVelocityAsync(
+            vx=dx * speed,
+            vy=dy * speed,
+            vz=dz * speed,
+            duration=duration,
+        ).join()
 
         obs = self._get_obs()
         distance = obs[6] # Distance to the landing pad
-        reward = (1000-distance) / 10000
+        reward = 10/distance
         # Print self positon and landing pad position
         
         self.step_count += 1
@@ -66,9 +85,10 @@ class DroneEnv(gym.Env):  # ✅ Inherit from gymnasium.Env
         # Check if collision has occurred
         if collision_info.has_collided:
             print(f"Object name: {collision_info.object_name}")
-            if ("Blocker" in collision_info.object_name):
-                reward -= 3
-                self.reset()
+            if ("Blocker" in collision_info.object_name or ("Cube" in collision_info.object_name)):
+              print("Collision with blocker detected. Resetting environment.")
+              reward -= 100
+              self.reset()
                 
         
         return obs, float(reward), terminated, truncated, {}
