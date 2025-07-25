@@ -9,16 +9,6 @@ import numpy as np
 env = DroneEnv()
 check_env(env)  # Check if the environment follows the Gymnasium API
 
-# class TensorboardCallback(BaseCallback):
-#     def __init__(self, verbose=0):
-#         super().__init__(verbose)
-
-#     def _on_step(self) -> bool:
-#         reward = self.locals.get("rewards", [0])[-1]
-#         self.logger.record("custom/reward", reward, exclude="stdout")
-#         self.logger.dump(self.num_timesteps)  # Force write to disk
-#         return True
-
 from stable_baselines3.common.callbacks import BaseCallback
 
 class EpisodeLoggingCallback(BaseCallback):
@@ -54,8 +44,8 @@ class EpisodeLoggingCallback(BaseCallback):
     
 from stable_baselines3.common.callbacks import CheckpointCallback
 checkpoint_callback = CheckpointCallback(
-    save_freq=1_000,
-    save_path="./checkpoints8/",  # Folder to save models
+    save_freq=10_000,
+    save_path="./checkpoints11c/",  # Folder to save models
     name_prefix="drone_model",   # File name prefix
     save_replay_buffer=True,     # Optional: save replay buffer for off-policy algorithms
     save_vecnormalize=True       # Optional: save normalization stats
@@ -68,11 +58,11 @@ combined_callback = CallbackList([
     EpisodeLoggingCallback()
 ])
 
-# model = PPO("MlpPolicy", env, verbose=1, tensorboard_log="./ppo_airsim_drone_tensorboard/", n_steps=256, batch_size=64)
-model = PPO.load("./checkpoints8/drone_model_148000_steps", env=env, tensorboard_log="./ppo_airsim_drone_tensorboard/", n_steps=1024, batch_size=64)
+# model = PPO("MlpPolicy", env, verbose=1, tensorboard_log="./ppo_airsim_drone_tensorboard/", n_steps=1024, batch_size=64)
+model = PPO.load("./checkpoints10c/drone_model_30000_steps", env=env, tensorboard_log="./ppo_airsim_drone_tensorboard/", n_steps=1024, batch_size=64)
 
 model.learn(
-    total_timesteps=200_000,
+    total_timesteps=2_000_000,
     callback=combined_callback,
-    reset_num_timesteps=False  # Keep the number of timesteps for the callback
+    # reset_num_timesteps=False  # For resuming training
 )

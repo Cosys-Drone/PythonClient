@@ -4,6 +4,7 @@ import gymnasium as gym  # ✅ Use gymnasium
 from gymnasium import spaces
 import time
 import math
+import random
 
 class DroneEnv(gym.Env):  # ✅ Inherit from gymnasium.Env
     def __init__(self):
@@ -13,17 +14,19 @@ class DroneEnv(gym.Env):  # ✅ Inherit from gymnasium.Env
         self.client.enableApiControl(True)
         self.client.armDisarm(True)
 
-        self.action_space = spaces.MultiDiscrete([3, 3, 3]) # 1, 0, -1 for each axis
+        self.action_space = spaces.MultiDiscrete([3, 3, 3, 3]) # 1, 0, -1 for each rotor
         
-        obs_high = np.array([10, 10, 10, 10, 10, 1, 1, 1, 1000])
+        obs_high = np.array([10, 10, 10, 10, 10, 1, 1, 1, 1, 1, 1, 1, 1000])
         self.observation_space = spaces.Box(-obs_high, obs_high, dtype=np.float32)
 
-        self.max_episode_steps = 180
+        self.max_episode_steps = 1000
         self.step_count = 0
+        self.rotor_speeds = [0] * 4  # Initialize rotor speeds
 
     def reset(self, seed=None, options=None):  # ✅ Updated signature
         super().reset(seed=seed)
         self.step_count = 0
+        self.rotor_speeds = [0] * 4  # Initialize rotor speeds
         self.client.reset()
         time.sleep(0.5)
         self.client.enableApiControl(True)
@@ -45,6 +48,7 @@ class DroneEnv(gym.Env):  # ✅ Inherit from gymnasium.Env
         obs = np.array([
             vel.x_val, vel.y_val, vel.z_val,
             pitch, yaw,
+            self.rotor_speeds[0], self.rotor_speeds[1], self.rotor_speeds[2], self.rotor_speeds[3],
             direction.x_val, direction.y_val, direction.z_val,
             distance,
         ], dtype=np.float32)
@@ -54,36 +58,58 @@ class DroneEnv(gym.Env):  # ✅ Inherit from gymnasium.Env
     def step(self, action):
       
         direction_map = {0: -1, 1: 0, 2: 1}
-        dx = direction_map[action[0]]
-        dy = direction_map[action[1]]
-        dz = direction_map[action[2]]
+        top_left = direction_map[action[0]]
+        top_right = direction_map[action[1]]
+        bottom_left = direction_map[action[2]]
+        bottom_right = direction_map[action[3]]
         
-        speed = 5  # m/s
-        duration = 0.25  # seconds
+        self.rotor_speeds[0] = min(max(self.rotor_speeds[0] + 0.03 * top_left, 0.5), 1)
+        self.rotor_speeds[1] = min(max(self.rotor_speeds[1] + 0.03 * top_right, 0.5), 1)
+        self.rotor_speeds[2] = min(max(self.rotor_speeds[2] + 0.03 * bottom_left, 0.5), 1)
+        self.rotor_speeds[3] = min(max(self.rotor_speeds[3] + 0.03 * bottom_right, 0.5), 1)
         
-        self.client.moveByVelocityAsync(
-            vx=dx * speed,
-            vy=dy * speed,
-            vz=dz * speed,
-            duration=duration,
+        if (random.random() < 0.005):
+            print(f"Rotor Speeds: {self.rotor_speeds}")
+        
+        
+        self.client.moveByMotorPWMsAsync(
+            front_left_pwm=self.rotor_speeds[0],
+            front_right_pwm=self.rotor_speeds[1],
+            rear_left_pwm=self.rotor_speeds[2],
+            rear_right_pwm=self.rotor_speeds[3],
+            duration=0.1 / 3 # Duration for the motor command
         ).join()
 
         obs = self._get_obs()
-        distance = obs[8] # Distance to the landing pad
-        reward = 10/distance
+        distance = obs[12] # Distance to the landing pad
+        # reward = 10/distance
+        reward = 0
         
         self.step_count += 1
-        reward -= self.step_count * 0.005
+        reward += self.step_count * 0.1
+        
+        # Get difference between all rotor speeds
+        max_speed = max(self.rotor_speeds)
+        min_speed = min(self.rotor_speeds)
+        # add to reward for small differences
+        reward += (0.5 - (max_speed - min_speed)) * 0.08
+        
+        # reward for higher rotor speeds
+        reward += (sum(self.rotor_speeds) - 3) * 0.5
         
         terminated = self.step_count >= self.max_episode_steps
         
         truncated = False
         
-        
         collision_info = self.client.simGetCollisionInfo()
         
         state = self.client.getMultirotorState()
         z_value = state.kinematics_estimated.position.z_val
+        
+        reward -= 0.005 * abs(z_value + 40) ** 2 # Maintain height
+        if (z_value > 0):
+            reward -= 100
+            terminated = True
 
         # Check if collision has occurred
         if collision_info.has_collided:
@@ -92,7 +118,6 @@ class DroneEnv(gym.Env):  # ✅ Inherit from gymnasium.Env
               print("Collision with blocker detected. Resetting environment.")
               reward -= 100
               terminated = True
-              self.reset()
             if (("Cylinder" in collision_info.object_name)):
                 if ((distance < 10) and (z_value < -15)):
                     print("Collision with landing pad detected. Resetting environment.")
@@ -103,7 +128,6 @@ class DroneEnv(gym.Env):  # ✅ Inherit from gymnasium.Env
                     print("Collision with landing pad detected but not at the right position. Resetting environment.")
                     reward -= 100
                     terminated = True
-                    self.reset()
                     
         
         return obs, float(reward), terminated, truncated, {}
