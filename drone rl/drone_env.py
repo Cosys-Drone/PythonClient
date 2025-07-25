@@ -15,10 +15,10 @@ class DroneEnv(gym.Env):  # ✅ Inherit from gymnasium.Env
 
         self.action_space = spaces.MultiDiscrete([3, 3, 3]) # 1, 0, -1 for each axis
         
-        obs_high = np.array([10, 10, 10, 1, 1, 1, 1000])
+        obs_high = np.array([10, 10, 10, 10, 10, 1, 1, 1, 1000])
         self.observation_space = spaces.Box(-obs_high, obs_high, dtype=np.float32)
 
-        self.max_episode_steps = 500
+        self.max_episode_steps = 180
         self.step_count = 0
 
     def reset(self, seed=None, options=None):  # ✅ Updated signature
@@ -38,15 +38,13 @@ class DroneEnv(gym.Env):  # ✅ Inherit from gymnasium.Env
         vel = state.kinematics_estimated.linear_velocity
         
         direction, distance = self.get_direction_and_distance(state.kinematics_estimated.position, airsim.Vector3r(261.7, -319.6, -15))
-        
-        '''
-        public static void SetToAirSim(Vector3 src, ref AirSimVector dst) {
-            dst.Set(src.z, src.x, -src.y);
-        }
-        '''
+        orientation = state.kinematics_estimated.orientation
+
+        pitch, yaw, _roll = self.get_pitch_yaw_roll(orientation)
         
         obs = np.array([
             vel.x_val, vel.y_val, vel.z_val,
+            pitch, yaw,
             direction.x_val, direction.y_val, direction.z_val,
             distance,
         ], dtype=np.float32)
@@ -71,16 +69,21 @@ class DroneEnv(gym.Env):  # ✅ Inherit from gymnasium.Env
         ).join()
 
         obs = self._get_obs()
-        distance = obs[6] # Distance to the landing pad
+        distance = obs[8] # Distance to the landing pad
         reward = 10/distance
-        # Print self positon and landing pad position
         
         self.step_count += 1
+        reward -= self.step_count * 0.005
+        
         terminated = self.step_count >= self.max_episode_steps
-        truncated = False  # optional early stopping condition
+        
+        truncated = False
         
         
         collision_info = self.client.simGetCollisionInfo()
+        
+        state = self.client.getMultirotorState()
+        z_value = state.kinematics_estimated.position.z_val
 
         # Check if collision has occurred
         if collision_info.has_collided:
@@ -88,8 +91,20 @@ class DroneEnv(gym.Env):  # ✅ Inherit from gymnasium.Env
             if ("Blocker" in collision_info.object_name or ("Cube" in collision_info.object_name)):
               print("Collision with blocker detected. Resetting environment.")
               reward -= 100
+              terminated = True
               self.reset()
-                
+            if (("Cylinder" in collision_info.object_name)):
+                if ((distance < 10) and (z_value < -15)):
+                    print("Collision with landing pad detected. Resetting environment.")
+                    reward += (200 - self.step_count) * 3
+                    terminated = True
+                    self.reset()
+                else:
+                    print("Collision with landing pad detected but not at the right position. Resetting environment.")
+                    reward -= 100
+                    terminated = True
+                    self.reset()
+                    
         
         return obs, float(reward), terminated, truncated, {}
 
@@ -110,9 +125,41 @@ class DroneEnv(gym.Env):  # ✅ Inherit from gymnasium.Env
 
         # Calculate magnitude (Euclidean distance)
         distance = math.sqrt(
-            direction.x_val**2 +
-            direction.y_val**2 +
-            direction.z_val**2
+            (direction.x_val**2) +
+            (direction.y_val**2) +
+            (direction.z_val**2)
         )
+        
+        '''
+        public static void SetToAirSim(Vector3 src, ref AirSimVector dst) {
+            dst.Set(src.z, src.x, -src.y);
+        }
+        '''
 
         return direction/distance, distance
+      
+    def get_pitch_yaw_roll(self, quaternion):
+      # Convert quaternion to Euler angles (in radians)
+      w = quaternion.w_val
+      x = quaternion.x_val
+      y = quaternion.y_val
+      z = quaternion.z_val
+
+      # Roll (x-axis rotation)
+      sinr_cosp = 2 * (w * x + y * z)
+      cosr_cosp = 1 - 2 * (x * x + y * y)
+      roll = math.atan2(sinr_cosp, cosr_cosp)
+
+      # Pitch (y-axis rotation)
+      sinp = 2 * (w * y - z * x)
+      if abs(sinp) >= 1:
+          pitch = math.copysign(math.pi / 2, sinp)  # use 90 degrees if out of range
+      else:
+          pitch = math.asin(sinp)
+
+      # Yaw (z-axis rotation)
+      siny_cosp = 2 * (w * z + x * y)
+      cosy_cosp = 1 - 2 * (y * y + z * z)
+      yaw = math.atan2(siny_cosp, cosy_cosp)
+
+      return pitch, yaw, roll

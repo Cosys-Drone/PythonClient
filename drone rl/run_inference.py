@@ -6,7 +6,7 @@ env = DroneEnv()
 n_episodes = 5
 
 # Load the trained model
-model = PPO.load("./checkpoints5/drone_model_160000_steps.zip", env=env)  # or whatever your file is named
+model = PPO.load("./checkpoints8/drone_model_158000_steps.zip", env=env)  # or whatever your file is named
 
 for ep in range(n_episodes):
     obs, _ = env.reset()

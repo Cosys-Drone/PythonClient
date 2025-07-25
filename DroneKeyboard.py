@@ -79,10 +79,16 @@ def get_direction_and_distance(drone_pos, pad_pos):
 
         # Calculate magnitude (Euclidean distance)
         distance = math.sqrt(
-            direction.x_val**2 +
-            direction.y_val**2 +
-            direction.z_val**2
+            (direction.x_val**2) * 4 +
+            (direction.y_val**2) * 1 +
+            (direction.z_val**2) * 0.5
         )
+        
+        '''
+        public static void SetToAirSim(Vector3 src, ref AirSimVector dst) {
+            dst.Set(src.z, src.x, -src.y);
+        }
+        '''
 
         return direction/distance, distance
 
@@ -103,10 +109,6 @@ try:
                 
         direction, distance = get_direction_and_distance(
             state.kinematics_estimated.position, airsim.Vector3r(261.7, -319.6, -15))
-        print(f"Current Position: {state.kinematics_estimated.position}, Distance to landing pad: {distance}")
-                
-                
-        # print(client.simListSceneObjects())
         
 except KeyboardInterrupt:
     pass
