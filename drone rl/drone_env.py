@@ -63,10 +63,10 @@ class DroneEnv(gym.Env):  # ✅ Inherit from gymnasium.Env
         bottom_left = direction_map[action[2]]
         bottom_right = direction_map[action[3]]
         
-        self.rotor_speeds[0] = min(max(self.rotor_speeds[0] + 0.03 * top_left, 0.5), 1)
-        self.rotor_speeds[1] = min(max(self.rotor_speeds[1] + 0.03 * top_right, 0.5), 1)
-        self.rotor_speeds[2] = min(max(self.rotor_speeds[2] + 0.03 * bottom_left, 0.5), 1)
-        self.rotor_speeds[3] = min(max(self.rotor_speeds[3] + 0.03 * bottom_right, 0.5), 1)
+        self.rotor_speeds[0] = min(max(0, self.rotor_speeds[0] + 0.01 * top_left), 1)
+        self.rotor_speeds[1] = min(max(0, self.rotor_speeds[1] + 0.01 * top_right), 1)
+        self.rotor_speeds[2] = min(max(0, self.rotor_speeds[2] + 0.01 * bottom_left), 1)
+        self.rotor_speeds[3] = min(max(0, self.rotor_speeds[3] + 0.01 * bottom_right), 1)
         
         if (random.random() < 0.005):
             print(f"Rotor Speeds: {self.rotor_speeds}")
@@ -125,7 +125,7 @@ class DroneEnv(gym.Env):  # ✅ Inherit from gymnasium.Env
 
 
         
-        reward -= 0.005 * abs(z_value + 40) ** 2 # Maintain height
+        reward -= 0.005 * abs(z_value + 70) ** 2 # Maintain height
         if (z_value > 5):
             reward -= 100
             terminated = True

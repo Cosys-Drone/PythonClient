@@ -57,7 +57,7 @@ def send_movement():
             front_right_pwm=rotor_speeds[1],
             rear_left_pwm=rotor_speeds[2],
             rear_right_pwm=rotor_speeds[3],
-            duration=0.1 / 3 # Duration for the motor command
+            duration=0.1 /3 # Duration for the motor command
         ).join()
     
     # Get the drone's pose (position and orientation)
