@@ -16,7 +16,7 @@ class DroneEnv(gym.Env):  # ✅ Inherit from gymnasium.Env
 
         self.action_space = spaces.MultiDiscrete([3, 3, 3, 3]) # 1, 0, -1 for each rotor
         
-        obs_high = np.array([10, 10, 10, 10, 10, 1, 1, 1, 1, 1, 1, 1, 1000])
+        obs_high = np.array([10, 10, 10, 4, 4, 4, 1, 1, 1, 1, 1, 1, 1, 1000])
         self.observation_space = spaces.Box(-obs_high, obs_high, dtype=np.float32)
 
         self.max_episode_steps = 1000
@@ -43,11 +43,11 @@ class DroneEnv(gym.Env):  # ✅ Inherit from gymnasium.Env
         direction, distance = self.get_direction_and_distance(state.kinematics_estimated.position, airsim.Vector3r(261.7, -319.6, -15))
         orientation = state.kinematics_estimated.orientation
 
-        pitch, yaw, _roll = self.get_pitch_yaw_roll(orientation)
+        pitch, yaw, roll = self.get_pitch_yaw_roll(orientation)
         
         obs = np.array([
             vel.x_val, vel.y_val, vel.z_val,
-            pitch, yaw,
+            pitch, yaw, roll,
             self.rotor_speeds[0], self.rotor_speeds[1], self.rotor_speeds[2], self.rotor_speeds[3],
             direction.x_val, direction.y_val, direction.z_val,
             distance,
@@ -88,12 +88,17 @@ class DroneEnv(gym.Env):  # ✅ Inherit from gymnasium.Env
         self.step_count += 1
         reward += self.step_count * 0.1
         
-        # Get difference between all rotor speeds
+        """# Get difference between all rotor speeds
         max_speed = max(self.rotor_speeds)
         min_speed = min(self.rotor_speeds)
         # add to reward for small differences
-        reward += (0.5 - (max_speed - min_speed)) * 0.08
-        
+        reward += (0.5 - (max_speed - min_speed)) * 0.08"""
+        # punish for if angles exceed certain thresholds
+        if (abs(obs[3]) > 0.5):
+            reward -= abs(obs[3]) * 0.1  # Pitch
+        if (abs(obs[5]) > 0.5):
+            reward -= abs(obs[5]) * 0.1  # roll
+
         # reward for higher rotor speeds
         reward += (sum(self.rotor_speeds) - 3) * 0.5
         
@@ -163,27 +168,37 @@ class DroneEnv(gym.Env):  # ✅ Inherit from gymnasium.Env
         return direction/distance, distance
       
     def get_pitch_yaw_roll(self, quaternion):
-      # Convert quaternion to Euler angles (in radians)
-      w = quaternion.w_val
-      x = quaternion.x_val
-      y = quaternion.y_val
-      z = quaternion.z_val
+        """# Convert quaternion to Euler angles (in radians)
+        w = quaternion.w_val
+        x = quaternion.x_val
+        y = quaternion.y_val
+        z = quaternion.z_val
 
-      # Roll (x-axis rotation)
-      sinr_cosp = 2 * (w * x + y * z)
-      cosr_cosp = 1 - 2 * (x * x + y * y)
-      roll = math.atan2(sinr_cosp, cosr_cosp)
+        # Roll (x-axis rotation)
+        sinr_cosp = 2 * (w * x + y * z)
+        cosr_cosp = 1 - 2 * (x * x + y * y)
+        roll = math.atan2(sinr_cosp, cosr_cosp)
 
-      # Pitch (y-axis rotation)
-      sinp = 2 * (w * y - z * x)
-      if abs(sinp) >= 1:
-          pitch = math.copysign(math.pi / 2, sinp)  # use 90 degrees if out of range
-      else:
-          pitch = math.asin(sinp)
+        # Pitch (y-axis rotation)
+        sinp = 2 * (w * y - z * x)
+        if abs(sinp) >= 1:
+            pitch = math.copysign(math.pi / 2, sinp)  # use 90 degrees if out of range
+        else:
+            pitch = math.asin(sinp)
 
-      # Yaw (z-axis rotation)
-      siny_cosp = 2 * (w * z + x * y)
-      cosy_cosp = 1 - 2 * (y * y + z * z)
-      yaw = math.atan2(siny_cosp, cosy_cosp)
+        # Yaw (z-axis rotation)
+        siny_cosp = 2 * (w * z + x * y)
+        cosy_cosp = 1 - 2 * (y * y + z * z)
+        yaw = math.atan2(siny_cosp, cosy_cosp)"""
 
-      return pitch, yaw, roll
+        # Get the drone's pose (position and orientation)
+        pose = self.client.simGetVehiclePose()
+
+        # Access the orientation from the pose
+        orientation = pose.orientation
+
+        # You can then convert the quaternion to Euler angles (roll, pitch, yaw)
+        # For example, using the AirSim utilities:
+        pitch, roll, yaw = airsim.to_eularian_angles(orientation)
+        
+        return pitch, yaw, roll
