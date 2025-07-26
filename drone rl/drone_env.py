@@ -98,6 +98,8 @@ class DroneEnv(gym.Env):  # ✅ Inherit from gymnasium.Env
             reward -= abs(obs[3]) * 0.1  # Pitch
         if (abs(obs[5]) > 0.5):
             reward -= abs(obs[5]) * 0.1  # roll
+        if (abs(obs[4]) > 1.57):
+            reward -= abs(obs[4]) * 0.1
 
         # reward for higher rotor speeds
         reward += (sum(self.rotor_speeds) - 3) * 0.5
@@ -111,8 +113,20 @@ class DroneEnv(gym.Env):  # ✅ Inherit from gymnasium.Env
         state = self.client.getMultirotorState()
         z_value = state.kinematics_estimated.position.z_val
         
+        angular_velocity_x = min(abs(state.kinematics_estimated.angular_velocity.x_val), 10)
+        angular_velocity_y = min(abs(state.kinematics_estimated.angular_velocity.y_val), 10)
+        angular_velocity_z = min(abs(state.kinematics_estimated.angular_velocity.z_val), 10)
+        
+        # Penalize for high angular velocities (spinning)
+        if angular_velocity_x > 0.5 or angular_velocity_y > 0.5 or angular_velocity_z > 0.5:
+            reward -= 0.3 * (abs(angular_velocity_x) + abs(angular_velocity_y) + abs(angular_velocity_z))
+        if (reward < -1000):
+            reward = -1000
+
+
+        
         reward -= 0.005 * abs(z_value + 40) ** 2 # Maintain height
-        if (z_value > 0):
+        if (z_value > 5):
             reward -= 100
             terminated = True
 
