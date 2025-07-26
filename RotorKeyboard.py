@@ -30,20 +30,20 @@ def send_movement():
     #increase rotor speeds
     if 'w' in pressed_keys:
         rotor_speeds[0] = min(rotor_speeds[0] + 0.01, 1)
-    if 's' in pressed_keys:
+    if 'd' in pressed_keys:
         rotor_speeds[1] = min(rotor_speeds[1] + 0.01, 1)
     if 'a' in pressed_keys:
         rotor_speeds[2] = min(rotor_speeds[2] + 0.01, 1)
-    if 'd' in pressed_keys:
+    if 's' in pressed_keys:
         rotor_speeds[3] = min(rotor_speeds[3] + 0.01, 1)
     #lower rotor speeds
     if 'i' in pressed_keys:
         rotor_speeds[0] = max(0,min(rotor_speeds[0] - 0.01, 1))
-    if 'k' in pressed_keys:
+    if 'l' in pressed_keys:
         rotor_speeds[1] = max(0,min(rotor_speeds[1] - 0.01, 1))
     if 'j' in pressed_keys:
         rotor_speeds[2] = max(0,min(rotor_speeds[2] - 0.01, 1))
-    if 'l' in pressed_keys:
+    if 'k' in pressed_keys:
         rotor_speeds[3] = max(0,min(rotor_speeds[3] - 0.01, 1))
     if 'r' in pressed_keys:
         client.reset()
