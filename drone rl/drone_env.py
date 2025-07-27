@@ -136,6 +136,9 @@ class DroneEnv(gym.Env):  # ✅ Inherit from gymnasium.Env
             reward += ((sparseRadius - distance)/3)**2
             if (random.random() < 0.01):
                 print(f"Reward for being close to landing pad: {reward}")
+        if (distance > sparseRadius + 50): # drone starts out ~81 units away from landing pad
+            reward -= (distance - sparseRadius - 50)/5
+
 
         # Check if collision has occurred
         if collision_info.has_collided:
