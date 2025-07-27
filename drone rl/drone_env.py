@@ -19,7 +19,7 @@ class DroneEnv(gym.Env):  # ✅ Inherit from gymnasium.Env
         obs_high = np.array([10, 10, 10, 4, 4, 4, 1, 1, 1, 1, 1, 1, 1, 1000])
         self.observation_space = spaces.Box(-obs_high, obs_high, dtype=np.float32)
 
-        self.max_episode_steps = 1000
+        self.max_episode_steps = 500
         self.step_count = 0
         self.rotor_speeds = [0.5] * 4  # Initialize rotor speeds
 
@@ -86,7 +86,7 @@ class DroneEnv(gym.Env):  # ✅ Inherit from gymnasium.Env
         reward = 0
         
         self.step_count += 1
-        reward += self.step_count * 0.1
+        reward += self.step_count * 0.01
         
         """# Get difference between all rotor speeds
         max_speed = max(self.rotor_speeds)
