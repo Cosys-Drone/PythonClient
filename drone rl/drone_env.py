@@ -21,12 +21,12 @@ class DroneEnv(gym.Env):  # ✅ Inherit from gymnasium.Env
 
         self.max_episode_steps = 1000
         self.step_count = 0
-        self.rotor_speeds = [0] * 4  # Initialize rotor speeds
+        self.rotor_speeds = [0.5] * 4  # Initialize rotor speeds
 
     def reset(self, seed=None, options=None):  # ✅ Updated signature
         super().reset(seed=seed)
         self.step_count = 0
-        self.rotor_speeds = [0] * 4  # Initialize rotor speeds
+        self.rotor_speeds = [0.5] * 4  # Initialize rotor speeds
         self.client.reset()
         time.sleep(0.5)
         self.client.enableApiControl(True)
@@ -125,10 +125,17 @@ class DroneEnv(gym.Env):  # ✅ Inherit from gymnasium.Env
 
 
         
-        reward -= 0.005 * abs(z_value + 70) ** 2 # Maintain height
-        if (z_value > 5):
+        #reward -= 0.005 * abs(z_value + 70) ** 2 # Maintain height
+        if (z_value > 0):
             reward -= 100
             terminated = True
+
+        # sparse reward (if drone is close to landing pad and above it)
+        sparseRadius = 50
+        if (distance < sparseRadius and z_value < -15):
+            reward += ((sparseRadius - distance)/3)**2
+            if (random.random() < 0.01):
+                print(f"Reward for being close to landing pad: {reward}")
 
         # Check if collision has occurred
         if collision_info.has_collided:
@@ -140,7 +147,7 @@ class DroneEnv(gym.Env):  # ✅ Inherit from gymnasium.Env
             if (("Cylinder" in collision_info.object_name)):
                 if ((distance < 10) and (z_value < -15)):
                     print("Collision with landing pad detected. Resetting environment.")
-                    reward += (200 - self.step_count) * 3
+                    reward += (1000 - self.step_count) * 3
                     terminated = True
                     self.reset()
                 else:
@@ -182,29 +189,6 @@ class DroneEnv(gym.Env):  # ✅ Inherit from gymnasium.Env
         return direction/distance, distance
       
     def get_pitch_yaw_roll(self, quaternion):
-        """# Convert quaternion to Euler angles (in radians)
-        w = quaternion.w_val
-        x = quaternion.x_val
-        y = quaternion.y_val
-        z = quaternion.z_val
-
-        # Roll (x-axis rotation)
-        sinr_cosp = 2 * (w * x + y * z)
-        cosr_cosp = 1 - 2 * (x * x + y * y)
-        roll = math.atan2(sinr_cosp, cosr_cosp)
-
-        # Pitch (y-axis rotation)
-        sinp = 2 * (w * y - z * x)
-        if abs(sinp) >= 1:
-            pitch = math.copysign(math.pi / 2, sinp)  # use 90 degrees if out of range
-        else:
-            pitch = math.asin(sinp)
-
-        # Yaw (z-axis rotation)
-        siny_cosp = 2 * (w * z + x * y)
-        cosy_cosp = 1 - 2 * (y * y + z * z)
-        yaw = math.atan2(siny_cosp, cosy_cosp)"""
-
         # Get the drone's pose (position and orientation)
         pose = self.client.simGetVehiclePose()
 

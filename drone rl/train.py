@@ -58,8 +58,8 @@ combined_callback = CallbackList([
     EpisodeLoggingCallback()
 ])
 
-# model = PPO("MlpPolicy", env, verbose=1, tensorboard_log="./ppo_airsim_drone_tensorboard/", n_steps=1024, batch_size=64)
-model = PPO.load("./checkpoints11c/drone_model_350000_steps", env=env, tensorboard_log="./ppo_airsim_drone_tensorboard/", n_steps=1024, batch_size=64)
+#model = PPO("MlpPolicy", env, verbose=1, tensorboard_log="./ppo_airsim_drone_tensorboard/", n_steps=1024, batch_size=64)
+model = PPO.load("./checkpoints11c/drone_model_660000_steps", env=env, tensorboard_log="./ppo_airsim_drone_tensorboard/", n_steps=1024, batch_size=64)
 
 model.learn(
     total_timesteps=2_000_000,
