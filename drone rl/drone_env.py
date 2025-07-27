@@ -81,7 +81,7 @@ class DroneEnv(gym.Env):  # ✅ Inherit from gymnasium.Env
         ).join()
 
         obs = self._get_obs()
-        distance = obs[12] # Distance to the landing pad
+        distance = obs[13] # Distance to the landing pad
         # reward = 10/distance
         reward = 0
         
