@@ -102,7 +102,7 @@ class DroneEnv(gym.Env):  # ✅ Inherit from gymnasium.Env
             reward -= abs(obs[4]) * 0.1
 
         # reward for higher rotor speeds
-        reward += (sum(self.rotor_speeds) - 3) * 0.5
+        #reward += (sum(self.rotor_speeds) - 3) * 0.5
         
         terminated = self.step_count >= self.max_episode_steps
         
