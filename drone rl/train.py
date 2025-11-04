@@ -45,7 +45,7 @@ class EpisodeLoggingCallback(BaseCallback):
 from stable_baselines3.common.callbacks import CheckpointCallback
 checkpoint_callback = CheckpointCallback(
     save_freq=10_000,
-    save_path="./checkpoints11c/",  # Folder to save models
+    save_path="./checkpoints1ae/",  # Folder to save models
     name_prefix="drone_model",   # File name prefix
     save_replay_buffer=True,     # Optional: save replay buffer for off-policy algorithms
     save_vecnormalize=True       # Optional: save normalization stats
@@ -58,11 +58,11 @@ combined_callback = CallbackList([
     EpisodeLoggingCallback()
 ])
 
-#model = PPO("MlpPolicy", env, verbose=1, tensorboard_log="./ppo_airsim_drone_tensorboard/", n_steps=1024, batch_size=64)
-model = PPO.load("./checkpoints11c/drone_model_1520000_steps", env=env, tensorboard_log="./ppo_airsim_drone_tensorboard/", n_steps=1024, batch_size=64)
+model = PPO("MlpPolicy", env, verbose=1, tensorboard_log="./ppo_airsim_drone_tensorboard/", n_steps=1024, batch_size=64)
+#model = PPO.load("./checkpoints11c/drone_model_7470000_steps", env=env, tensorboard_log="./ppo_airsim_drone_tensorboard/", n_steps=1024, batch_size=64)
 
 model.learn(
     total_timesteps=5_000_000,
     callback=combined_callback,
-    reset_num_timesteps=False  # For resuming training
+    reset_num_timesteps=True  # For resuming training
 )
