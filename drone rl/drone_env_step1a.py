@@ -45,7 +45,11 @@ class DroneEnv(gym.Env):  # ✅ Inherit from gymnasium.Env
         state = self.client.getMultirotorState()
         vel = state.kinematics_estimated.linear_velocity
         
-        direction, distance = self.get_direction_and_distance(state.kinematics_estimated.position, airsim.Vector3r(261.7, -319.6, -15))
+        # direction, distance = self.get_direction_and_distance(state.kinematics_estimated.position, airsim.Vector3r(261.7, -319.6, -15))
+        direction = 0
+        distance = 0
+        # Prior 
+        
         orientation = state.kinematics_estimated.orientation
 
         pitch, yaw, roll = self.get_pitch_yaw_roll(orientation)
