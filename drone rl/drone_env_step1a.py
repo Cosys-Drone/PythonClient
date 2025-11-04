@@ -19,7 +19,21 @@ class DroneEnv(gym.Env):  # ✅ Inherit from gymnasium.Env
 
         self.action_space = spaces.MultiDiscrete([3, 3, 3, 3]) # 1, 0, -1 for each rotor
         
-        obs_high = np.array([10, 10, 10, 4, 4, 4, 1, 1, 1, 1, 1, 1, 1, 1000, 1000])
+        # initialize the observation space array
+        obs_high = np.array([10, 10, 10, 1.6, 3.2, 3.2, 1, 1, 1, 1, 1, 1, 1, 200, 200, 3.2, 3.2, 3.2])
+        # Order: xyz velocities (3), pitch, yaw, roll, rotor speeds (4), normalized direction to pad (3), distance, altitude, angular velocities (3)
+        
+        '''
+         obs = np.array([
+            vel.x_val, vel.y_val, vel.z_val,
+            pitch, yaw, roll,
+            self.rotor_speeds[0], self.rotor_speeds[1], self.rotor_speeds[2], self.rotor_speeds[3],
+            direction.x_val, direction.y_val, direction.z_val,
+            distance,
+
+        ], dtype=np.float32)
+        '''
+        
         self.observation_space = spaces.Box(-obs_high, obs_high, dtype=np.float32)
 
         self.max_episode_steps = 500
@@ -45,14 +59,17 @@ class DroneEnv(gym.Env):  # ✅ Inherit from gymnasium.Env
         state = self.client.getMultirotorState()
         vel = state.kinematics_estimated.linear_velocity
         
-        # direction, distance = self.get_direction_and_distance(state.kinematics_estimated.position, airsim.Vector3r(261.7, -319.6, -15))
-        direction = 0
-        distance = 0
-        # Prior 
+        direction, distance = self.get_direction_and_distance(state.kinematics_estimated.position, airsim.Vector3r(261.7, -319.6, -15))
         
         orientation = state.kinematics_estimated.orientation
 
+        # angles (in radians)
         pitch, yaw, roll = self.get_pitch_yaw_roll(orientation)
+        
+        # angular velocity (in radians)
+        angular_velocity_x = abs(state.kinematics_estimated.angular_velocity.x_val)
+        angular_velocity_y = abs(state.kinematics_estimated.angular_velocity.y_val)
+        angular_velocity_z = abs(state.kinematics_estimated.angular_velocity.z_val)
         
         # Set observations
         obs = np.array([
@@ -61,7 +78,8 @@ class DroneEnv(gym.Env):  # ✅ Inherit from gymnasium.Env
             self.rotor_speeds[0], self.rotor_speeds[1], self.rotor_speeds[2], self.rotor_speeds[3],
             direction.x_val, direction.y_val, direction.z_val,
             distance,
-            state.kinematics_estimated.position.z_val # Altitude
+            state.kinematics_estimated.position.z_val, # Altitude
+            angular_velocity_x, angular_velocity_y, angular_velocity_z
         ], dtype=np.float32)
         
         return obs
@@ -78,11 +96,63 @@ class DroneEnv(gym.Env):  # ✅ Inherit from gymnasium.Env
         self.rotor_speeds[1] = min(max(0, self.rotor_speeds[1] + 0.01 * top_right), 1)
         self.rotor_speeds[2] = min(max(0, self.rotor_speeds[2] + 0.01 * bottom_left), 1)
         self.rotor_speeds[3] = min(max(0, self.rotor_speeds[3] + 0.01 * bottom_right), 1)
+        
+        self.client.moveByMotorPWMsAsync(
+            front_left_pwm=self.rotor_speeds[0],
+            front_right_pwm=self.rotor_speeds[1],
+            rear_left_pwm=self.rotor_speeds[2],
+            rear_right_pwm=self.rotor_speeds[3],
+            duration=0.1 / 3 # Duration for the motor command
+        ).join()
 
         obs = self._get_obs()
+        # Order: xyz velocities (3), pitch, yaw, roll, rotor speeds (4), normalized direction to pad (3), distance, altitude, angular velocities (3)
+        state = self.client.getMultirotorState()
+        z_value = state.kinematics_estimated.position.z_val
+        angular_velocity_x = abs(state.kinematics_estimated.angular_velocity.x_val)
+        angular_velocity_y = abs(state.kinematics_estimated.angular_velocity.y_val)
+        angular_velocity_z = abs(state.kinematics_estimated.angular_velocity.z_val)
+        
         reward = 0
         truncated = False
         terminated = False
+
+        
+        # REWARDS + PUNISHIES :3
+
+        # Rotor Speeds (+ Offset)
+        rangeOfOffset = max(self.rotor_speeds[0],self.rotor_speeds[1],self.rotor_speeds[2],self.rotor_speeds[3]) - min(self.rotor_speeds[0],self.rotor_speeds[1],self.rotor_speeds[2],self.rotor_speeds[3])
+        if (rangeOfOffset > 0.05): 
+            reward -= rangeOfOffset*0.1
+        if (rangeOfOffset < 0.05): 
+            reward += 0.08
+
+
+        # Drone Angle of Rotation
+        pitch = obs[3]
+        roll = obs[5]
+        angle = max(pitch, roll) / math.pi * 180  # Convert to degrees
+        if (angle > 30):  # 30 degrees
+            reward -= min(angle * 0.001, 0.075)
+        if (angle < 15):  # 15 degrees
+            reward += 0.06
+
+
+        # Drone Angular Velocity
+        # Reset episode if exceeds pi radians per second
+        if (max(angular_velocity_x, angular_velocity_y, angular_velocity_z) > math.pi):
+            reward -= 30
+            terminated = True
+
+
+        # Drone Position
+        if (z_value > 0):
+            reward -= 10
+            terminated = True
+
+        # Living
+        reward += 0.1
+
         
         return obs, float(reward), terminated, truncated, {}
 
@@ -123,7 +193,7 @@ class DroneEnv(gym.Env):  # ✅ Inherit from gymnasium.Env
         # Access the orientation from the pose
         orientation = pose.orientation
 
-        # You can then convert the quaternion to Euler angles (roll, pitch, yaw)
+        # You can then convert the quaternion to Euler angles (pitch, roll, yaw)
         # For example, using the AirSim utilities:
         pitch, roll, yaw = airsim.to_eularian_angles(orientation)
         
