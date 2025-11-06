@@ -9,9 +9,9 @@ import random
 # Define a constant for the clock speed
 clockspeed = 3  # Adjust this value as needed
 
-class DroneEnv(gym.Env):  # ✅ Inherit from gymnasium.Env
+class DroneEnv1a(gym.Env):  # ✅ Inherit from gymnasium.Env
     def __init__(self):
-        super(DroneEnv, self).__init__()
+        super(DroneEnv1a, self).__init__()
         self.client = airsim.MultirotorClient()
         self.client.confirmConnection()
         self.client.enableApiControl(True)
@@ -142,6 +142,7 @@ class DroneEnv(gym.Env):  # ✅ Inherit from gymnasium.Env
         # Reset episode if exceeds pi radians per second
         if (max(angular_velocity_x, angular_velocity_y, angular_velocity_z) > math.pi):
             reward -= 30
+            print("Angular velocity exceeded limit!")
             terminated = True
 
 
