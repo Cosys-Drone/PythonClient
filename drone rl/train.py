@@ -45,7 +45,7 @@ class EpisodeLoggingCallback(BaseCallback):
 from stable_baselines3.common.callbacks import CheckpointCallback
 checkpoint_callback = CheckpointCallback(
     save_freq=10_000,
-    save_path="./checkpoints1a_c/",  # Folder to save models
+    save_path="./checkpoints1a_a/",  # Folder to save models
     name_prefix="drone_model",   # File name prefix
     save_replay_buffer=True,     # Optional: save replay buffer for off-policy algorithms
     save_vecnormalize=True       # Optional: save normalization stats

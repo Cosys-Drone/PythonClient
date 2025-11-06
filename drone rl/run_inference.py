@@ -1,12 +1,12 @@
 from stable_baselines3 import PPO
-from drone_env import DroneEnv
+from drone_env_step1a import DroneEnv1a
 import time
 
-env = DroneEnv()
+env = DroneEnv1a()
 n_episodes = 50
 
 # Load the trained model
-model = PPO.load("./checkpoints11c/drone_model_1950000_steps.zip", env=env)  # or whatever your file is named
+model = PPO.load("./checkpoints1a_c/drone_model_140000_steps.zip", env=env)  # or whatever your file is named
 
 for ep in range(n_episodes):
     obs, _ = env.reset()
