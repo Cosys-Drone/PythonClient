@@ -40,11 +40,15 @@ class DroneEnv1a_3(gym.Env):  # ✅ Inherit from gymnasium.Env
         self.max_episode_steps = 500
         self.step_count = 0
         self.rotor_speeds = [0] * 4  # Initialize rotor speeds
+        self.rotor_speeds[0] = 0  # Disabled rotor
+        self.target_altitude = -70
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
         self.step_count = 0
-        self.rotor_speeds = [0] * 4  # Initialize rotor speeds
+        self.rotor_speeds = [random.random(0,1)] * 4  # Initialize rotor speeds
+        self.rotor_speeds[0] = 0  # Disabled rotor
+        self.target_altitude = random.randint(-90, -50)
         # (removed random initial rotor speeds for simplicity)
         self.client.reset()
         
@@ -87,6 +91,8 @@ class DroneEnv1a_3(gym.Env):  # ✅ Inherit from gymnasium.Env
         return obs
 
     def step(self, action):
+
+        self.step_count += 1
       
         direction_map = {0: -1, 1: 0, 2: 1}
         #top_left = direction_map[action[0]]
@@ -119,6 +125,8 @@ class DroneEnv1a_3(gym.Env):  # ✅ Inherit from gymnasium.Env
         truncated = False
         terminated = False
 
+        terminated = self.step_count >= self.max_episode_steps
+
         
         # REWARDS + PUNISHIES :3
 
@@ -148,10 +156,12 @@ class DroneEnv1a_3(gym.Env):  # ✅ Inherit from gymnasium.Env
             terminated = True
 
 
-        # Drone Position
-        if (z_value > 0):
-            reward -= 10
-            terminated = True
+        # Drone Altitude
+        altitude_diff = abs(z_value - self.target_altitude)
+        if (altitude_diff < 20):
+            reward += (20 - (altitude_diff ** 2) / 20) / 200
+        if (altitude_diff > 20):
+            reward += (5 - (altitude_diff) / 4) / 100
 
         # Living
         reward += 0.1
