@@ -6,13 +6,15 @@ env = DroneEnv1ab3()
 n_episodes = 50
 
 # Load the trained model
-model = PPO.load("./checkpoints1ab3_audrey/drone_model_40000_steps.zip", env=env)  # or whatever your file is named
+model = PPO.load("./checkpoints1a_3_cameron_3/drone_model_60000_steps.zip", env=env)  # or whatever your file is named
 
 for ep in range(n_episodes):
     obs, _ = env.reset()
     done = False
     truncated = False
     total_reward = 0
+    
+    print(f"Starting episode {ep + 1}")
 
     while not (done or truncated):  
         action, _ = model.predict(obs, deterministic=False)

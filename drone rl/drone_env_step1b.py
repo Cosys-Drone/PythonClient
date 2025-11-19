@@ -9,9 +9,9 @@ import random
 # Define a constant for the clock speed
 clockspeed = 3  # Adjust this value as needed
 
-class DroneEnv1a(gym.Env):
+class DroneEnv1b(gym.Env):
     def __init__(self):
-        super(DroneEnv1a, self).__init__()
+        super(DroneEnv1b, self).__init__()
         self.client = airsim.MultirotorClient()
         self.client.confirmConnection()
         self.client.enableApiControl(True)
@@ -23,22 +23,12 @@ class DroneEnv1a(gym.Env):
         obs_high = np.array([10, 10, 10, 1.6, 3.2, 3.2, 1, 1, 1, 1, 1, 1, 1, 200, 200, 3.2, 3.2, 3.2])
         # Order: xyz velocities (3), pitch, yaw, roll, rotor speeds (4), normalized direction to pad (3), distance, altitude, angular velocities (3)
         
-        '''
-         obs = np.array([
-            vel.x_val, vel.y_val, vel.z_val,
-            pitch, yaw, roll,
-            self.rotor_speeds[0], self.rotor_speeds[1], self.rotor_speeds[2], self.rotor_speeds[3],
-            direction.x_val, direction.y_val, direction.z_val,
-            distance,
-
-        ], dtype=np.float32)
-        '''
-        
         self.observation_space = spaces.Box(-obs_high, obs_high, dtype=np.float32)
 
         self.max_episode_steps = 500
         self.step_count = 0
         self.rotor_speeds = [0.5] * 4  # Initialize rotor speeds
+        self.target_altitude = random.randint(-90, -50)  # Random target altitude between -90 and -50
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
@@ -116,6 +106,9 @@ class DroneEnv1a(gym.Env):
         reward = 0
         truncated = False
         terminated = False
+        
+        terminated = self.step_count >= self.max_episode_steps
+        self.step_count += 1
 
         
         # REWARDS + PUNISHIES :3
@@ -150,6 +143,13 @@ class DroneEnv1a(gym.Env):
         if (z_value > 0):
             reward -= 10
             terminated = True
+            
+        # Altitude
+        altitude_diff = abs(z_value - self.target_altitude)
+        if (altitude_diff < 20):
+            reward += (10 - (altitude_diff ** 2) / 20) / 100
+        if (altitude_diff > 20):
+            reward += (-(altitude_diff) / 5 - 6) / 100
 
         # Living
         reward += 0.1
@@ -165,17 +165,17 @@ class DroneEnv1a(gym.Env):
         self.client.enableApiControl(False)
 
     def get_direction_and_distance(self, drone_pos, pad_pos):
-        # Calculate direction vector
+        # Calculate direction vector (height difference only)
         direction = airsim.Vector3r(
-            pad_pos.x_val - drone_pos.x_val,
-            pad_pos.y_val - drone_pos.y_val,
+            0,
+            0,
             pad_pos.z_val - drone_pos.z_val
         )
 
         # Calculate magnitude (Euclidean distance)
         distance = math.sqrt(
-            (direction.x_val**2) +
-            (direction.y_val**2) +
+            (0) +
+            (0) +
             (direction.z_val**2)
         )
         
