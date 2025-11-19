@@ -1,12 +1,12 @@
 from stable_baselines3 import PPO
 from stable_baselines3.common.env_checker import check_env
-from drone_env_step1a_3 import DroneEnv1a_3
+from drone_env_step1ab3 import DroneEnv1ab3
 
 from stable_baselines3.common.callbacks import BaseCallback
 
 import numpy as np
 
-env = DroneEnv1a_3()
+env = DroneEnv1ab3()
 check_env(env)  # Check if the environment follows the Gymnasium API
 
 from stable_baselines3.common.callbacks import BaseCallback
@@ -45,7 +45,7 @@ class EpisodeLoggingCallback(BaseCallback):
 from stable_baselines3.common.callbacks import CheckpointCallback
 checkpoint_callback = CheckpointCallback(
     save_freq=10_000,
-    save_path="./checkpoints1a_3_audrey/",  # Folder to save models
+    save_path="./checkpoints1ab3_audrey/",  # Folder to save models
     name_prefix="drone_model",   # File name prefix
     save_replay_buffer=True,     # Optional: save replay buffer for off-policy algorithms
     save_vecnormalize=True       # Optional: save normalization stats
@@ -58,8 +58,8 @@ combined_callback = CallbackList([
     EpisodeLoggingCallback()
 ])
 
-model = PPO("MlpPolicy", env, verbose=1, tensorboard_log="./EDD_tensorboard/1a_3", n_steps=1024, batch_size=64)
-#model = PPO.load("./checkpoints1a_c/drone_model_50000_steps", env=env, tensorboard_log="./EDD_tensorboard/1a", n_steps=1024, batch_size=64)
+model = PPO("MlpPolicy", env, verbose=1, tensorboard_log="./EDD_tensorboard/1ab3", n_steps=1024, batch_size=64)
+#model = PPO.load("./checkpoints1ab3_audrey/drone_model_40000_steps", env=env, tensorboard_log="./EDD_tensorboard/1ab3", n_steps=1024, batch_size=64)
 
 model.learn(
     total_timesteps=5_000_000,

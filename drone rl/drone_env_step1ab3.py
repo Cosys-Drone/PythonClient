@@ -7,11 +7,11 @@ import math
 import random
 
 # Define a constant for the clock speed
-clockspeed = 3  # Adjust this value as needed
+clockspeed = 1  # Adjust this value as needed
 
-class DroneEnv1a_3(gym.Env):  # ✅ Inherit from gymnasium.Env
+class DroneEnv1ab3(gym.Env):  # ✅ Inherit from gymnasium.Env
     def __init__(self):
-        super(DroneEnv1a_3, self).__init__()
+        super(DroneEnv1ab3, self).__init__()
         self.client = airsim.MultirotorClient()
         self.client.confirmConnection()
         self.client.enableApiControl(True)
@@ -46,7 +46,7 @@ class DroneEnv1a_3(gym.Env):  # ✅ Inherit from gymnasium.Env
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
         self.step_count = 0
-        self.rotor_speeds = [random.random(0,1)] * 4  # Initialize rotor speeds
+        self.rotor_speeds = [random.randint(0,10)/100] * 4  # Initialize rotor speeds
         self.rotor_speeds[0] = 0  # Disabled rotor
         self.target_altitude = random.randint(-90, -50)
         # (removed random initial rotor speeds for simplicity)
@@ -65,7 +65,8 @@ class DroneEnv1a_3(gym.Env):  # ✅ Inherit from gymnasium.Env
         state = self.client.getMultirotorState()
         vel = state.kinematics_estimated.linear_velocity
         
-        direction, distance = self.get_direction_and_distance(state.kinematics_estimated.position, airsim.Vector3r(261.7, -319.6, -15))
+        # will later be used for calculating direction & distance to landing pad
+        direction, distance = self.get_direction_and_distance(state.kinematics_estimated.position, airsim.Vector3r(state.kinematics_estimated.position.x_val, state.kinematics_estimated.position.y_val, self.target_altitude))
         
         orientation = state.kinematics_estimated.orientation
 
@@ -136,7 +137,10 @@ class DroneEnv1a_3(gym.Env):  # ✅ Inherit from gymnasium.Env
             reward -= rangeOfOffset*0.1
         if (rangeOfOffset < 0.05): 
             reward += 0.08"""
-
+        # punish drone for setting all rotor speeds to 0
+        if (self.rotor_speeds[1] < 0.01 and self.rotor_speeds[2] < 0.01 and self.rotor_speeds[3] < 0.01):
+            reward -= 0.15 # enough to offset the living reward
+            # so even if the drone sets all rotors to 0 and crashes, it still gets a negative reward overall
 
         # Drone Angle of Rotation
         pitch = obs[3]
@@ -163,6 +167,9 @@ class DroneEnv1a_3(gym.Env):  # ✅ Inherit from gymnasium.Env
         if (altitude_diff > 20):
             reward += (5 - (altitude_diff) / 4) / 100
 
+        if (z_value > -5):
+            terminated = True # end episode if drone crashes on ground
+            reward -= 20
         # Living
         reward += 0.1
 
